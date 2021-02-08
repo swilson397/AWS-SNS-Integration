@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update>
+    <sys_documentation element="headers" label="Headers" language="en" table="x_58056_aws_sns_int_rest_transaction_log">
+        <sys_documentation action="INSERT_OR_UPDATE">
+            <element>headers</element>
+            <help/>
+            <hint/>
+            <label>Headers</label>
+            <language>en</language>
+            <name>x_58056_aws_sns_int_rest_transaction_log</name>
+            <plural>Headers</plural>
+            <sys_class_name>sys_documentation</sys_class_name>
+            <sys_created_by>admin</sys_created_by>
+            <sys_created_on>2020-05-22 22:35:30</sys_created_on>
+            <sys_id>e0d9eb3bdbfc1c50768670adbf9619d3</sys_id>
+            <sys_mod_count>0</sys_mod_count>
+            <sys_name>Headers</sys_name>
+            <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
+            <sys_policy/>
+            <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
+            <sys_update_name>sys_documentation_x_58056_aws_sns_int_rest_transaction_log_headers_en</sys_update_name>
+            <sys_updated_by>admin</sys_updated_by>
+            <sys_updated_on>2020-05-22 22:35:30</sys_updated_on>
+            <url/>
+            <url_target/>
+        </sys_documentation>
+    </sys_documentation>
+</record_update>

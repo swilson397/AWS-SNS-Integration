@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_properties_category">
+    <sys_properties_category action="INSERT_OR_UPDATE">
+        <name>AWS SNS Integration</name>
+        <sys_class_name>sys_properties_category</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2020-05-16 00:50:54</sys_created_on>
+        <sys_id>1255487ddb34d810768670adbf961900</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>AWS SNS Integration</sys_name>
+        <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
+        <sys_update_name>sys_properties_category_1255487ddb34d810768670adbf961900</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2020-05-16 00:50:54</sys_updated_on>
+        <title><![CDATA[<p><strong>AWS SNS Integration Properties</strong></p>
+<p>Properties used with the AWS SNS integration</p>]]></title>
+    </sys_properties_category>
+    <sys_translated_text action="delete_multiple" query="documentkey=1255487ddb34d810768670adbf961900"/>
+</record_update>

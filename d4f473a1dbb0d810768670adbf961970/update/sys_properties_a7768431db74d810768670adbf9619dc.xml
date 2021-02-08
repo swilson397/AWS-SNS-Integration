@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_properties">
+    <sys_properties action="INSERT_OR_UPDATE">
+        <choices/>
+        <description>The maxium number of attempts when sending a message. Some attempts will fail with a 403 status code</description>
+        <ignore_cache>false</ignore_cache>
+        <is_private>false</is_private>
+        <name>x_58056_aws_sns_int.aws_sns.send_message.max_retries</name>
+        <read_roles/>
+        <suffix>aws_sns.send_message.max_retries</suffix>
+        <sys_class_name>sys_properties</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2020-05-16 00:55:24</sys_created_on>
+        <sys_id>a7768431db74d810768670adbf9619dc</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>x_58056_aws_sns_int.aws_sns.send_message.max_retries</sys_name>
+        <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
+        <sys_update_name>sys_properties_a7768431db74d810768670adbf9619dc</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2020-05-16 00:55:24</sys_updated_on>
+        <type>integer</type>
+        <value>10</value>
+        <write_roles/>
+    </sys_properties>
+    <sys_translated_text action="delete_multiple" query="documentkey=a7768431db74d810768670adbf9619dc"/>
+</record_update>

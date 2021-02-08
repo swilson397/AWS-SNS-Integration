@@ -1,0 +1,559 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_script_include">
+    <sys_script_include action="INSERT_OR_UPDATE">
+        <access>package_private</access>
+        <active>true</active>
+        <api_name>x_58056_aws_sns_int.AWSSNSUtils</api_name>
+        <caller_access/>
+        <client_callable>false</client_callable>
+        <description/>
+        <name>AWSSNSUtils</name>
+        <script><![CDATA[var AWSSNSUtils = Class.create();
+
+AWSSNSUtils.prototype = {
+  PUBLISH_MESSAGE_ACTION: "Publish",
+  CONFIRM_SUBSCRIPTION_TYPE: "Confirm Subscription",
+  UNSUBSCRIBE_SUBSCRIPTION_TYPE: "Unsubscribe Subscription",
+  PUBLISH_MESSAGE_RETRY_STATUS_CODE: "403",
+  MAX_RETRIES: "1",
+  CONFIRM_METHOD: "GET",
+  INBOUND_DIRECTION: "Inbound",
+  OUTBOUND_DIRECTION: "Outbound",
+  PENDING_STATE: "pending",
+  SUBSCRIBED_STATE: "subscribed",
+  UNSUBSCRIBED_STATE: "unsubscribed",
+  NOTIFICATION_TYPE: "Notification",
+  SUBSCRIPTION_CONFIRMATION_TYPE: "SubscriptionConfirmation",
+  UNSUBSCRIBE_CONFIRMATION_TYPE: "UnsubscribeConfirmation",
+  ACTION_PARAMETERS: {
+    Publish: {
+      method: "POST",
+      contentType: "application/x-www-form-urlencoded",
+      messageType: "Publish SNS Message",
+      direction: "Outbound",
+    },
+  },
+
+  /**
+   * Initialize variables
+   */
+  initialize: function () {
+    this.awsSNSAuth = null;
+    this.awsUtils = new AWSIntegrationUtils();
+    this.snsService = gs.getProperty("x_58056_aws_sns_int.aws_sns.service", null);
+    this.snsAccountID = gs.getProperty("x_58056_aws_sns_int.aws_sns.account", null);
+    this.notes = [];
+    this.logger = new AWSSNSLogger(this.type);
+  },
+
+  handleInboundNotification: function (/*RESTAPIRequest*/ request, /*RESTAPIResponse*/ response) {
+    var logFieldValues = { body: "", notes: [], query: "", headers: "" };
+    var headers = request.headers;
+    delete headers["authorization"]; // dont save the base64 user/password
+    logFieldValues.headers = JSON.stringify(headers);
+    logFieldValues.query = JSON.stringify(request.queryParams);
+
+    var requestObj = this._getRequestObject(request.body.dataStream);
+    var bodyText = JSON.stringify(requestObj);
+    logFieldValues.body = bodyText;
+
+    // If type or topic ARN missing then return an error
+    if (!("Type" in requestObj) || gs.nil(requestObj.Type) || !("TopicArn" in requestObj) || gs.nil(requestObj.TopicArn)) {
+      this.notes.push("Missing message Type and/or TopicArn");
+      this._logError(this.notes);
+      return;
+    }
+
+    var subscriptionGR = new GlideRecord("x_58056_aws_sns_int_sns_topic");
+    var haveSubscription = subscriptionGR.get("topic_arn", requestObj.TopicArn);
+
+    this.logger.log("Topic ARN: " + requestObj.TopicArn + " haveSubscription: " + haveSubscription);
+
+    var err = null;
+
+    if (requestObj.Type == this.NOTIFICATION_TYPE) {
+      this._notification(subscriptionGR, requestObj, haveSubscription);
+    } else if (requestObj.Type == this.SUBSCRIPTION_CONFIRMATION_TYPE) {
+      this._subscriptionConfirmation(subscriptionGR, this.PENDING_STATE, requestObj, haveSubscription);
+    } else if (requestObj.Type == this.UNSUBSCRIBE_CONFIRMATION_TYPE) {
+      this._unsubscribeConfirmation(subscriptionGR, this.UNSUBSCRIBED_STATE, requestObj, haveSubscription);
+    } else {
+      this.notes.push("Invalid message Type for topic ARN: " + requestObj.Type);
+      this._logError(this.notes);
+    }
+
+    logFieldValues.notes = this.notes;
+
+    this.logger.log(logFieldValues.notes.join("\n"));
+    this.logger.addRESTTransactionLog(requestObj.Type, this.INBOUND_DIRECTION, logFieldValues);
+  },
+
+  _subscriptionConfirmation: function (subscriptionGR, state, request, haveSubscription) {
+    var arnParts = request.TopicArn.split(":");
+    var arnService = arnParts[2];
+    var arnAccountID = arnParts[4];
+    var topicName = arnParts[arnParts.length - 1];
+
+    // If no subscription record exists then create it
+    if (!haveSubscription) {
+      subscriptionGR.initialize();
+      subscriptionGR.setValue("topic_arn", request.TopicArn);
+      this.notes.push("Subscription record for topic ARN " + request.TopicArn + " created.");
+    } else {
+      this.notes.push("Confirmation request received for subscription record topic ARN " + request.TopicArn + ".");
+    }
+    subscriptionGR.state = state;
+    subscriptionGR.subscription_url = request.SubscribeURL;
+
+    if (subscriptionGR.name.nil()) {
+      subscriptionGR.name = topicName;
+    }
+    if (subscriptionGR.service_endpoint.nil()) {
+      var urlComponents = this.awsUtils.parseURL(request.SubscribeURL);
+      subscriptionGR.service_endpoint = urlComponents.url;
+    }
+    subscriptionGR.update();
+
+    this.notes.push(
+      "Property values: snsService=" +
+        this.snsService +
+        " snsAccountID=" +
+        this.snsAccountID +
+        " Message values: arnService=" +
+        arnService +
+        " arnAccountID=" +
+        arnAccountID
+    );
+    /*
+     * If Service and Account ID match then auto confirm it
+     *
+     * We want to do this even if our subscription record already existed with a State = "Subscribed"
+     * because at times due to roll backs, etc. the AWS confirmation is lost and must be resent
+     *
+     */
+
+    if (this.snsService && arnService == this.snsService && this.snsAccountID && arnAccountID == this.snsAccountID) {
+      this.confirmSubscription(subscriptionGR);
+      this.notes.push("Subscription auto-confirmed topic ARN " + request.TopicArn + ".");
+    }
+  },
+
+  _unsubscribeConfirmation: function (subscriptionGR, state, request, haveSubscription) {
+    if (haveSubscription) {
+      subscriptionGR.setValue("state", state);
+      subscriptionGR.setValue("subscription_url", request.SubscribeURL);
+      subscriptionGR.update();
+      this.notes.push("Subscription record for topic ARN " + request.TopicArn + " unsubscribed.");
+    } else {
+      this.notes.push("Unsubscribe confirmation received but not subscribed to topic.");
+      this._logError(this.notes);
+    }
+  },
+
+  _notification: function (subscriptionGR, request, haveSubscription) {
+    if (!haveSubscription) {
+      this.notes.push("Notification received for topic with no confirmed subscription.");
+      this._logError(this.notes);
+    } else {
+      try {
+        var errorsOccurred = [];
+        var message = JSON.parse(request.Message);
+
+        if (subscriptionGR.unsubscribe_url.nil()) {
+          subscriptionGR.unsubscribe_url = request.UnsubscribeURL;
+          subscriptionGR.update();
+          this.notes.push("UnsubscribeURL updated for subscription GR " + subscriptionGR.topic_arn);
+        }
+
+        // Handle processors
+        var subToProcessorGR = new GlideRecord("x_58056_aws_sns_int_m2m_sns_processors_sns_topics");
+        subToProcessorGR.addQuery("sns_topic", subscriptionGR.getUniqueValue());
+        subToProcessorGR.addQuery("active", true);
+        subToProcessorGR.addQuery("sns_processor.active", true);
+        subToProcessorGR.orderBy("order");
+        subToProcessorGR.query();
+        while (subToProcessorGR.next()) {
+          var processorGR = new GlideRecord("x_58056_aws_sns_int_sns_processor");
+          if (processorGR.get(subToProcessorGR.sns_processor.toString())) {
+            var evaluator = new GlideScopedEvaluator();
+            evaluator.putVariable("request", request);
+            evaluator.putVariable("message", message);
+            evaluator.putVariable("aws_sns_notification_result", { error_occurred: false, message: null });
+            evaluator.evaluateScript(processorGR, "processor_script");
+            var result = evaluator.getVariable("aws_sns_notification_result");
+            this.logger.log("error_occurred=" + result.error_occurred + " message=" + result.message);
+            if ((result.error_occurred === "true" || result.error_occurred === true) && !gs.nil(result.message)) {
+              errorsOccurred.push(result.message);
+            }
+            if (!gs.nil(result.message)) {
+              this.notes.push("Processor " + processorGR.getDisplayValue() + " evaluated and returned this message:");
+              this.notes.push(result.message);
+            } else {
+              this.notes.push("Processor " + processorGR.getDisplayValue() + " evaluated with no message returned.");
+            }
+          }
+        }
+
+        if (this.notes.length == 0) {
+          this.notes.push("Nothing to process.");
+        }
+      } catch (e) {
+        errorsOccurred.push(e);
+      }
+
+      if (errorsOccurred.length > 0) {
+        var errMsg = errorsOccurred.join("\n\n");
+        this.notes.push(errMsg);
+        this._logError(this.notes);
+      }
+    }
+  },
+
+  /**
+   * Send a message to an AWS SNS queue and if it fails will
+   * attempts a number of retries (set in a system property)
+   *
+   * @param {string} targetURL
+   * @param {string} messageBody
+   * @param {sys_id} credID - points to a credential record
+   *
+   * @returns {object} - contains properties status, responseAttributes, message and httpStatus
+   */
+  publishMessageWithRetry: function (topicName, subject, messageBody, credID, taskID) {
+    var result = { status: null, responseAttributes: {}, message: null, httpStatus: null };
+    var maxRetries = gs.getProperty("x_58056_aws_sns_int.aws_sns.send_message.max_retries", this.MAX_RETRIES);
+    maxRetries = parseInt(maxRetries);
+
+    var tries = 0;
+
+    var done = false;
+
+    while (!done) {
+      result = this.publishMessage(topicName, subject, messageBody, credID, taskID);
+      tries++;
+      if (result.status == this.SUCCESS) {
+        done = true;
+      } else {
+        if (result.httpStatus == this.PUBLISH_MESSAGE_RETRY_STATUS_CODE) {
+          if (tries > maxRetries) {
+            // Too many attempts
+            done = true;
+          }
+        } else {
+          // Some unknown error
+          done = true;
+        }
+      }
+    }
+
+    this.logger.log("SendMessage attempts: " + tries);
+
+    return result;
+  },
+
+  /**
+   * Send a message to an AWS SNS queue - one attempt only
+   *
+   * @param {*} targetURL
+   * @param {*} messageBody
+   * @param {*} credID
+   * @param {*} taskID
+   *
+   * @returns {object} - contains properties status, responseAttributes, message and httpStatus
+   */
+  publishMessage: function (topicName, subject, message, credID, taskID) {
+    var result = { status: null, responseAttributes: {}, message: null, httpStatus: null };
+    var topicGR = null;
+    if (gs.nil(topicName)) {
+      topicGR = this.getDefaultTopicAttributes();
+    } else {
+      topicGR = this.getTopicAttributes(topicName);
+    }
+
+    if (gs.nil(topicGR)) {
+      result.status = this.awsUtils.FAILED;
+      result.message = "Topic not found";
+      this.logger.logError(result.message);
+      return result;
+    }
+    var topicAttr = this._getTopicAttr(topicGR);
+
+    var body = [
+      "Action=" + this.PUBLISH_MESSAGE_ACTION,
+      "TopicArn=" + encodeURIComponent(topicAttr.topicArn),
+      "Subject=" + encodeURIComponent(subject),
+      "Message=" + encodeURIComponent(message),
+    ].join("&");
+
+    result = this.triggerSNSAction(topicAttr.url, this.PUBLISH_MESSAGE_ACTION, body, credID, taskID);
+    result.responseAttributes = {};
+
+    if (result.status == this.awsUtils.SUCCESS) {
+      var responseObject = gs.xmlToJSON(result.responseBody.trim());
+      this.logger.log("JSON Response=" + JSON.stringify(responseObject));
+      if ("PublishResponse" in responseObject) {
+        var messageResponse = responseObject.PublishResponse;
+        if ("ResponseMetadata" in messageResponse && "RequestId" in messageResponse.ResponseMetadata) {
+          result.responseAttributes.RequestId = messageResponse.ResponseMetadata.RequestId;
+        }
+        if ("PublishResult" in messageResponse && !gs.nil(messageResponse.PublishResult)) {
+          if ("MessageId" in messageResponse.PublishResult) {
+            result.responseAttributes.messageId = messageResponse.PublishResult.MessageId;
+          }
+        }
+      }
+    }
+    return result;
+  },
+
+  confirmSubscription: function (subscrGR) {
+    if (subscrGR.subscription_url.nil()) {
+      return;
+    }
+
+    var request = new sn_ws.RESTMessageV2();
+    request.setEndpoint(subscrGR.subscription_url.toString());
+    request.setHttpMethod(this.CONFIRM_METHOD);
+    var response = request.execute();
+
+    this.logger.addRESTTransactionLog(this.CONFIRM_SUBSCRIPTION_TYPE, this.OUTBOUND_DIRECTION, {
+      method: this.CONFIRM_METHOD,
+      http_status: response.getStatusCode(),
+      end_point: request.getEndpoint(),
+      request: request.getRequestBody(),
+      response: response.getBody(),
+    });
+
+    var responseObject = gs.xmlToJSON(response.getBody());
+    this.logger.log("JSON Response=" + JSON.stringify(responseObject));
+    if ("SubscriptionArn" in responseObject) {
+      subscrGR.setValue("subscription_arn", responseObject.SubscriptionArn);
+    }
+    subscrGR.setValue("state", this.SUBSCRIBED_STATE); // Subscribed
+    subscrGR.update();
+  },
+
+  unsubscribe: function (subscrGR) {
+    if (subscrGR.unsubscribe_url.nil()) {
+      return;
+    }
+    var request = new sn_ws.RESTMessageV2();
+    request.setEndpoint(subscrGR.unsubscribe_url.toString());
+    request.setHttpMethod(this.CONFIRM_METHOD);
+    var response = request.execute();
+
+    this.logger.addRESTTransactionLog(this.UNSUBSCRIBE_SUBSCRIPTION_TYPE, this.OUTBOUND_DIRECTION, {
+      method: this.CONFIRM_METHOD,
+      http_status: response.getStatusCode(),
+      end_point: request.getEndpoint(),
+      request: request.getRequestBody(),
+      response: response.getBody(),
+    });
+  },
+
+  reconfirmSubscription: function (subscrGR) {
+    this.confirmSubscription(subscrGR);
+  },
+
+  /**
+   * Send a message to an AWS resource - one attempt only
+   *
+   * @param {*} targetURL
+   * @param {*} messageBody
+   * @param {*} credID
+   * @param {*} taskID
+   * @param {*} method
+   * @param {*} contentType
+   * @param {*} messageType
+   *
+   * @returns {object} - contains properties status, responseAttributes, message and httpStatus
+   */
+  triggerSNSAction: function (targetURL, action, messageBody, credID, taskID) {
+    var result = { status: null, responseBody: "", message: null, httpStatus: null };
+    if (gs.nil(targetURL)) {
+      result.message = "Target URL missing";
+      result.status = this.awsUtils.FAILED;
+      this.logger.logError(result.message);
+      return result;
+    }
+
+    if (gs.nil(action) || !(action in this.ACTION_PARAMETERS)) {
+      result.message = "Action or action parameters missing";
+      result.status = this.awsUtils.FAILED;
+      this.logger.logError(result.message);
+      return result;
+    }
+    var actionParameters = this.ACTION_PARAMETERS[action];
+
+    var awsCreds = this.awsUtils.getCredentials(credID);
+    if (!awsCreds.accessKeyID) {
+      result.message = "AWS credentials not found";
+      result.status = this.awsUtils.FAILED;
+      this.logger.logError(result.message);
+      return result;
+    }
+
+    var awsAPIAuthorization = new AWSAuthorization(
+      targetURL,
+      actionParameters.method,
+      null, // From targetURL
+      null, // From targetURL
+      awsCreds.accessKeyID,
+      awsCreds.SecretAccessKey,
+      actionParameters.contentType,
+      messageBody
+    );
+
+    this.logger.log("Target URL=" + awsAPIAuthorization.getTargetURL());
+
+    var rm = this.awsUtils.prepareRestMessage(
+      awsAPIAuthorization.getMethod(),
+      awsAPIAuthorization.getTargetURL(),
+      awsAPIAuthorization.getAuthorization(),
+      awsAPIAuthorization.getDate(),
+      awsAPIAuthorization.getHeadersObject(),
+      awsAPIAuthorization.getAllQueryParameters(),
+      awsAPIAuthorization.getBody()
+    );
+
+    try {
+      var response = rm.execute();
+      var responseBody = response.getBody();
+      var httpStatus = response.getStatusCode();
+      result.httpStatus = httpStatus;
+      var endPoint = rm.getEndpoint();
+
+      var headers = awsAPIAuthorization.getHeadersObject();
+      delete headers["authorization"]; // dont save the base64 user/password
+
+      this.logger.addRESTTransactionLog(actionParameters.messageType, actionParameters.direction, {
+        method: awsAPIAuthorization.getMethod(),
+        http_status: httpStatus,
+        endpoint: endPoint,
+        request: decodeURIComponent(awsAPIAuthorization.getBody()),
+        response: responseBody,
+        task: taskID,
+        headers: JSON.stringify(headers),
+        query: JSON.stringify(awsAPIAuthorization.getAllQueryParameters()),
+      });
+
+      var ok = false;
+      if (httpStatus == 200 || httpStatus == 201) {
+        ok = true;
+      }
+
+      if (!ok) {
+        result.message =
+          "Bad status code returned from sendMessage call. " +
+          " \n\nCode=" +
+          httpStatus +
+          "\n\nEndpoint=" +
+          endPoint +
+          "\n\nResponse=" +
+          responseBody;
+        this.logger.logError(result.message);
+        result.status = this.awsUtils.FAILED;
+      } else {
+        result.responseBody = responseBody;
+        result.status = this.awsUtils.SUCCESS;
+      }
+    } catch (e) {
+      result.message = e.message;
+      result.status = this.awsUtils.FAILED;
+      this.logger.logError(result.message);
+    }
+    return result;
+  },
+
+  _getRequestObject: function (inputStream) {
+    var reader = new GlideTextReader(inputStream);
+    var requestString = "";
+    var line = "";
+    var ctr = 0;
+    while ((line = reader.readLine()) != null) {
+      ctr++;
+      requestString += line;
+    }
+    this.logger.log("requestString: " + requestString);
+    return JSON.parse(requestString);
+  },
+
+  _logError: function (message) {
+    if (Array.isArray(message)) {
+      message = message.join("\n");
+    }
+    this.logger.logError(message);
+  },
+
+  getTopicAttributes: function (topicName) {
+    return this._getTopicRecord("active=true^name=" + topicName);
+  },
+
+  getDefaultTopicAttributes: function () {
+    return this._getTopicRecord("active=true^default=true");
+  },
+
+  _getTopicRecord: function (query) {
+    var topicGR = new GlideRecord("x_58056_aws_sns_int_sns_topic");
+    if (!gs.nil(query)) {
+      topicGR.addEncodedQuery(query);
+    }
+    topicGR.query();
+    if (topicGR.next()) {
+      return topicGR;
+    }
+    return null;
+  },
+
+  _getTopicAttr: function (topicGR) {
+    var topicAttr = {};
+    topicAttr.url = topicGR.service_endpoint.toString();
+    topicAttr.topicArn = topicGR.topic_arn.toString();
+    topicAttr.subscriptionURL = topicGR.subscription_url.toString();
+    topicAttr.unsubscribeURL = topicGR.unsubscribe_url.toString();
+    topicAttr.state = topicGR.state.toString();
+    return topicAttr;
+  },
+
+  type: "AWSSNSUtils",
+};
+
+AWSSNSUtils.testPublishMessage = function (topicName, subject, msg) {
+  if (gs.nil(subject)) {
+    subject = "Test Message Subject";
+  }
+  if (gs.nil(msg)) {
+    var obj = {};
+    obj.TransactionType = "TestType";
+    obj.Subject = subject;
+    obj.Message = { Response: { id: "123456", sub_id: "taskabcd", status: "received", message: "Done" } };
+    msg = JSON.stringify(obj);
+    gs.info("Using msg=" + msg + ".");
+  }
+  var responseElements = null;
+  var result = new AWSSNSUtils().publishMessageWithRetry(topicName, subject, msg);
+  if (result.status == "success") {
+    responseElements = result.responseAttributes;
+    gs.info("responseElements=" + Object.keys(responseElements));
+    for (key in responseElements) {
+      gs.info(key + "=" + responseElements[key]);
+    }
+  } else {
+    gs.error("Public Message failed. msg=" + result.message);
+  }
+  return responseElements;
+};
+]]></script>
+        <sys_class_name>sys_script_include</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2020-05-18 23:32:00</sys_created_on>
+        <sys_id>69101b66db7c9050768670adbf961913</sys_id>
+        <sys_mod_count>34</sys_mod_count>
+        <sys_name>AWSSNSUtils</sys_name>
+        <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
+        <sys_policy>read</sys_policy>
+        <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
+        <sys_update_name>sys_script_include_69101b66db7c9050768670adbf961913</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2020-08-05 00:37:01</sys_updated_on>
+    </sys_script_include>
+</record_update>

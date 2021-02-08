@@ -1,0 +1,515 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_script_include">
+    <sys_script_include action="INSERT_OR_UPDATE">
+        <access>package_private</access>
+        <active>true</active>
+        <api_name>x_58056_aws_sns_int.AWSAuthorization</api_name>
+        <caller_access/>
+        <client_callable>false</client_callable>
+        <description/>
+        <name>AWSAuthorization</name>
+        <script><![CDATA[var AWSAuthorization = Class.create();
+AWSAuthorization.prototype = {
+  initialize: function (targetURL, method, region, service, accessKeyID, secretAccessKey, contentType, body) {
+    this.method = null;
+    this.date = null;
+    this.region = null;
+    this.service = null;
+    this.body = null;
+    this.headers = {};
+    this.protocol = null;
+    this.port = null;
+    this.url = null;
+    this.contentType = null;
+    this.queryParameters = {};
+    this.digest = new GlideDigest();
+
+    this.integrationUtils = new AWSIntegrationUtils();
+
+    this.setAccessID(accessKeyID);
+    this.setSecretAccessKeyID(secretAccessKey);
+    this.setMethod(method);
+    this.setBody(body);
+    this.setService(service);
+    this.setRegion(region);
+
+    this.setTargetURL(targetURL);
+    this.setContentType(contentType);
+
+    this.logger = new AWSSNSLogger(this.type);
+  },
+
+  getAuthorization: function () {
+    if (gs.nil(this.getQueryString())) {
+      this.setHeader("X-Amz-Date", this.getDate());
+    }
+
+    // Creating the Canonical Header
+    var canonicalHeaders = this.getHeaders();
+    this.logger.debug("canonicalHeaders:" + canonicalHeaders);
+
+    var canonicalQueryString = this.getQueryString();
+    this.logger.debug("canonicalQueryString:" + canonicalQueryString);
+
+    //Signed Headers
+    var signedHeaders = this.getSignedHeaders();
+
+    //Create CanonicalRequest
+    var canonicalRequest =
+      this.getMethod() +
+      "\n" +
+      this.getPath() +
+      "\n" +
+      canonicalQueryString +
+      "\n" +
+      canonicalHeaders +
+      "\n" +
+      "\n" +
+      signedHeaders +
+      "\n" +
+      this.getHash();
+
+    this.logger.debug("canonicalRequest: " + canonicalRequest);
+
+    //Task 2: Create a String to Sign
+    //"AWS4-HMAC-SHA256" + "\n" +
+    //timeStampISO8601Format + "\n" +
+    //<Scope> + "\n" +
+    //Hex(SHA256Hash(<CanonicalRequest>))
+
+    // Setting Variables needed for String to Sign
+    var date_sub = this.getDate().substring(0, 8);
+    var scope = date_sub + "/" + this.getRegion() + "/" + this.getService() + "/" + "aws4_request";
+    var hashCanonical = this.digest.getSHA256Hex(canonicalRequest);
+    var hashLower = hashCanonical.toLowerCase();
+
+    var stringToSign = "AWS4-HMAC-SHA256" + "\n" + this.getDate() + "\n" + scope + "\n" + hashLower;
+    this.logger.debug("StringToSign: " + stringToSign);
+
+    //Task 3: Calculate Signature
+
+    //DateKey              = HMAC-SHA256("AWS4"+"<SecretAccessKey>", "<YYYYMMDD>")
+    //DateRegionKey        = HMAC-SHA256(<DateKey>, "<aws-region>")
+    //DateRegionServiceKey = HMAC-SHA256(<DateRegionKey>, "<aws-service>")
+    //SigningKey           = HMAC-SHA256(<DateRegionServiceKey>, "aws4_request")
+    //Signature 		   = HMAC-SHA256(SigningKey, StringToSign)
+
+    var signature = this._getSignature(this.getSecretAccessKeyID(), date_sub, this.getRegion(), this.getService(), stringToSign);
+    this.logger.debug("Signature: " + signature);
+
+    //Create Authorization String
+    var authorization =
+      "AWS4-HMAC-SHA256 Credential=" + this.getAccessID() + "/" + scope + ", SignedHeaders=" + signedHeaders + ", Signature=" + signature;
+    this.logger.debug("authorization: " + authorization);
+    return authorization;
+  },
+
+  _getSignature: function (secretAccessKeyID, date_sub, region, service, stringToSign) {
+    try {
+      var kSecret = secretAccessKeyID;
+      var kDate = x_58056_aws_sns_int.CryptoJS.HmacSHA256(date_sub, "AWS4" + kSecret);
+      var kRegion = x_58056_aws_sns_int.CryptoJS.HmacSHA256(region, kDate);
+      var kService = x_58056_aws_sns_int.CryptoJS.HmacSHA256(service, kRegion);
+      var kSigning = x_58056_aws_sns_int.CryptoJS.HmacSHA256("aws4_request", kService);
+      var kSignature = x_58056_aws_sns_int.CryptoJS.HmacSHA256(stringToSign, kSigning);
+
+      this.logger.debug("kSignature: " + kSignature);
+
+      return kSignature;
+    } catch (e) {
+      this.logger.logError(e);
+    }
+  },
+
+  setHeader: function (name, value) {
+    this.headers[name] = value;
+  },
+
+  getHeadersObject: function () {
+    return this.headers;
+  },
+
+  getHeaders: function () {
+    return Object.keys(this.headers)
+      .sort(function (a, b) {
+        return a.toLowerCase() < b.toLowerCase() ? -1 : 1;
+      })
+      .map(function (key) {
+        return key.toLowerCase() + ":" + this._trimAll(this.headers[key]);
+      }, this)
+      .join("\n");
+  },
+
+  getSignedHeaders: function () {
+    return Object.keys(this.headers)
+      .map(function (key) {
+        return key.toLowerCase();
+      }, this)
+      .sort()
+      .join(";");
+  },
+
+  getMethod: function () {
+    if (gs.nil(this.method)) {
+      this.method = "GET";
+    }
+    return this.method;
+  },
+
+  setMethod: function (method) {
+    this.method = method;
+  },
+
+  getBody: function () {
+    return this.body;
+  },
+
+  setBody: function (body) {
+    this.body = body;
+    if (gs.nil(this.body)) {
+      this.body = "";
+    } else {
+      this.setHeader("Content-Length", this.body.length);
+    }
+
+    var hashedPayload = this.digest.getSHA256Hex(this.body); //ServiceNow's method for SHA256 hex
+    this.setHash(hashedPayload.toLowerCase());
+  },
+
+  getContentType: function () {
+    return this.contentType;
+  },
+
+  setContentType: function (contentType) {
+    this.contentType = contentType;
+    if (gs.nil(this.contentType)) {
+      this.contentType = "";
+    } else {
+      this.setHeader("Content-Type", contentType);
+    }
+  },
+
+  getService: function () {
+    return this.service;
+  },
+
+  setService: function (service) {
+    this.service = service;
+  },
+
+  getQueryParameter: function (name) {
+    if (name in this.queryParameters) {
+      return this.queryParameters[name];
+    }
+    return null;
+  },
+
+  getAllQueryParameters: function () {
+    return this.queryParameters;
+  },
+
+  setQueryParameter: function (name, value) {
+    if (!gs.nil(name)) {
+      this.queryParameters[name] = value;
+    }
+  },
+
+  getQueryString: function () {
+    var query = [];
+    for (var name in this.queryParameters) {
+      if (this.queryParameters[name] !== null) {
+        query.push(name + "=" + this.queryParameters[name]);
+      }
+    }
+    return query.join("&");
+  },
+
+  setQueryString: function (query) {
+    var parts = query.split("&");
+    parts.forEach(function (part) {
+      var pair = part.split("=", 2);
+      var name = pair[0];
+      var value = "";
+      if (pair.length == 2) {
+        value = pair[1];
+      }
+      this.setQueryParameter(name, value);
+    }, this);
+  },
+
+  getTargetURL: function () {
+    return this.targetURL;
+  },
+
+  setTargetURL: function (targetURL) {
+    this.targetURL = targetURL;
+    var urlComponents = this.integrationUtils.parseURL(targetURL);
+    this.setHeader("Host", urlComponents.host);
+    this.setHost(urlComponents.host);
+    this.setPath(urlComponents.path);
+    this.setQueryString(urlComponents.query);
+    this.setProtocol(urlComponents.protocol);
+    this.setPort(urlComponents.port);
+    this.setURL(urlComponents.url);
+  },
+
+  getURL: function () {
+    return this.url;
+  },
+
+  setURL: function (url) {
+    this.url = url;
+  },
+
+  getProtocol: function () {
+    return this.protocol;
+  },
+
+  setProtocol: function (protocol) {
+    this.protocol = protocol;
+  },
+
+  getHost: function () {
+    return this.host;
+  },
+
+  setHost: function (host) {
+    this.host = host;
+
+    var hostParts = this._getHostParts(host);
+    if (gs.nil(this.getService())) {
+      this.setService(hostParts[0] || "");
+    }
+    if (gs.nil(this.getRegion())) {
+      this.setRegion(hostParts[1] || "us-east-1");
+    }
+  },
+
+  getPort: function () {
+    return this.port;
+  },
+
+  setPort: function (port) {
+    this.port = port;
+  },
+
+  getRegion: function () {
+    return this.region;
+  },
+
+  setRegion: function (region) {
+    this.region = region;
+  },
+
+  getSecretAccessKeyID: function () {
+    return this.yourSecretAccessKeyID;
+  },
+
+  setSecretAccessKeyID: function (yourSecretAccessKeyID) {
+    this.yourSecretAccessKeyID = yourSecretAccessKeyID;
+  },
+
+  getAccessID: function () {
+    return this.accessID;
+  },
+
+  setAccessID: function (accessID) {
+    this.accessID = accessID;
+  },
+
+  getPath: function () {
+    return this.path;
+  },
+
+  setPath: function (path) {
+    this.path = path;
+  },
+
+  getHash: function () {
+    return this.hash;
+  },
+
+  setHash: function (hash) {
+    this.hash = hash;
+  },
+
+  // Date converter for AWS date format
+  getDate: function () {
+    if (gs.nil(this.date)) {
+      var gdt = new GlideDateTime();
+      var time = gdt.getTime();
+      var t = time.getByFormat("HHmmss");
+      var wd = (function () {
+        var map = {
+          "1": "Mon",
+          "2": "Tue",
+          "3": "Wed",
+          "4": "Thu",
+          "5": "Fri",
+          "6": "Sat",
+          "7": "Sun",
+        };
+        return map[gdt.getDayOfWeekUTC() + ""];
+      })();
+      var d = (function () {
+        var map = {
+          "1": "01",
+          "2": "02",
+          "3": "03",
+          "4": "04",
+          "5": "05",
+          "6": "06",
+          "7": "07",
+          "8": "08",
+          "9": "09",
+          "10": "10",
+          "11": "11",
+          "12": "12",
+          "13": "13",
+          "14": "14",
+          "15": "15",
+          "16": "16",
+          "17": "17",
+          "18": "18",
+          "19": "19",
+          "20": "20",
+          "21": "21",
+          "22": "22",
+          "23": "23",
+          "24": "24",
+          "25": "25",
+          "26": "26",
+          "27": "27",
+          "28": "28",
+          "29": "29",
+          "30": "30",
+          "31": "31",
+        };
+        return map[gdt.getDayOfMonthUTC() + ""];
+      })();
+
+      var m = (function () {
+        var map = {
+          "1": "01",
+          "2": "02",
+          "3": "03",
+          "4": "04",
+          "5": "05",
+          "6": "06",
+          "7": "07",
+          "8": "08",
+          "9": "09",
+          "10": "10",
+          "11": "11",
+          "12": "12",
+        };
+        return map[gdt.getMonthUTC() + ""];
+      })();
+      var y = gdt.getYearUTC();
+      this.date = y + m + d + "T" + t + "Z";
+    }
+    this.logger.debug("date = " + this.date);
+    return this.date;
+  },
+
+  setDate: function (date) {
+    this.date = date;
+  },
+
+  _trimAll: function (header) {
+    return header.toString().trim().replace(/\s+/g, " ");
+  },
+
+  _getHostParts: function (host) {
+    var match = (host || "").match(/([^\.]+)\.(?:([^\.]*)\.)?amazonaws\.com$/);
+    var hostParts = (match || []).slice(1, 3);
+
+    // ES's hostParts are sometimes the other way round, if the value that is expected
+    // to be region equals 'es' switch them back
+    // e.g. search-cluster-name-aaaa00aaaa0aaa0aaaaaaa0aaa.us-east-1.es.amazonaws.com
+    if (hostParts[1] === "es") {
+      hostParts = hostParts.reverse();
+    }
+
+    return hostParts;
+  },
+
+  type: "AWSAuthorization",
+};
+
+AWSAuthorization.test = function () {
+  var queueURL = "https://sqs.us-west-2.amazonaws.com/689554358602/ServiceNow";
+
+  var messageText = "Hello from SQSClient - 2";
+  var encodedMessageBody = encodeURIComponent(messageText);
+  var body = ["MessageBody=" + encodedMessageBody, "Action=SendMessage"].join("&");
+
+  var sqs = new AWSAuthorization(
+    queueURL,
+    "POST",
+    "us-west-2",
+    "",
+    "AKIA2BDFEQFFG6BLBJCM",
+    "NNAtKLJR/AvK9byR+7pkmAec5ZorpvcD7qDKFmZ7",
+    "application/x-www-form-urlencoded",
+    body
+  );
+  var auth = sqs.getAuthorization();
+
+  gs.info("Auth=" + auth);
+
+  var rm = new AWSSNSUtils().prepareRestMessage(method, endPoint, headers, auth, date, parameters, message);
+  try {
+    var response = rm.execute();
+    var responseBody = response.getBody();
+    var httpStatus = response.getStatusCode();
+    result.httpStatus = httpStatus;
+    var endPoint = rm.getEndpoint();
+
+    var ok = false;
+    if (httpStatus == 200 || httpStatus == 201) {
+      ok = true;
+    }
+
+    if (!ok) {
+      result.message =
+        "Bad status code returned from sendMessage call. " +
+        " \n\nCode=" +
+        httpStatus +
+        "\n\nEndpoint=" +
+        endPoint +
+        "\n\nResponse=" +
+        responseBody;
+      this.logger.logError(result.message);
+      result.status = "failed";
+    } else {
+      var xmlDoc = new XMLDocument2();
+      xmlDoc.parseXML(responseBody);
+      result.responseAttributes.messageId = xmlDoc.getNodeText("/SendMessageResponse/SendMessageResult/MessageId");
+      result.responseAttributes.MD5OfMessageBody = xmlDoc.getNodeText("/SendMessageResponse/SendMessageResult/MD5OfMessageBody");
+      result.responseAttributes.MD5OfMessageAttributes = xmlDoc.getNodeText(
+        "/SendMessageResponse/SendMessageResult/MD5OfMessageAttributes"
+      );
+      result.responseAttributes.RequestId = xmlDoc.getNodeText("/SendMessageResponse/ResponseMetadata/RequestId");
+      result.status = "success";
+    }
+  } catch (ex) {
+    var message = ex.message;
+    this.logger.debug(message);
+  }
+  gs.info("Message ID: " + result.responseAttributes.messageId);
+};
+]]></script>
+        <sys_class_name>sys_script_include</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2020-05-19 00:13:56</sys_created_on>
+        <sys_id>18f91be6dbbc9050768670adbf9619c2</sys_id>
+        <sys_mod_count>15</sys_mod_count>
+        <sys_name>AWSAuthorization</sys_name>
+        <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
+        <sys_policy>read</sys_policy>
+        <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
+        <sys_update_name>sys_script_include_18f91be6dbbc9050768670adbf9619c2</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2020-06-24 23:29:03</sys_updated_on>
+    </sys_script_include>
+</record_update>

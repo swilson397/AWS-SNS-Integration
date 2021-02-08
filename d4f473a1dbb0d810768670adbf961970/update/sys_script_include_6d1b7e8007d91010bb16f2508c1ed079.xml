@@ -1,0 +1,553 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_script_include">
+    <sys_script_include action="INSERT_OR_UPDATE">
+        <access>package_private</access>
+        <active>true</active>
+        <api_name>x_58056_aws_sns_int.AWSSQSUtils</api_name>
+        <caller_access/>
+        <client_callable>false</client_callable>
+        <description/>
+        <name>AWSSQSUtils</name>
+        <script><![CDATA[var AWSSQSUtils = Class.create();
+
+AWSSQSUtils.prototype = {
+  CONTENT_TYPE: "application/x-www-form-urlencoded",
+  OUTBOUND_DIRECTION: "Outbound",
+  DEFAULT_METHOD: "GET",
+  SEND_MESSAGE_RETRY_STATUS_CODE: "403",
+  MAX_RETRIES: "1",
+  MAX_NUMBER_OF_MESSAGES: 5,
+  VISIBILITY_TIMEOUT: 15,
+  WAIT_TIME_SECONDS: 10,
+  SEND_MESSAGE_ACTION: "SendMessage",
+  RECEIVE_MESSAGE_ACTION: "ReceiveMessage",
+  DELETE_MESSAGE_ACTION: "DeleteMessageBatch",
+
+  ACTION_PARAMETERS: {
+    SendMessage: {
+      method: "POST",
+      contentType: "application/x-www-form-urlencoded",
+      messageType: "Send SQS Message",
+      direction: "Outbound",
+    },
+    DeleteMessageBatch: {
+      method: "POST",
+      contentType: "application/x-www-form-urlencoded",
+      messageType: "Delete SQS Message",
+      direction: "Outbound",
+    },
+    ReceiveMessage: {
+      method: "POST",
+      contentType: "application/x-www-form-urlencoded",
+      messageType: "Receive SQS Message",
+      direction: "Outbound",
+    },
+  },
+
+  /**
+   * Initialize variables
+   */
+  initialize: function () {
+    this.awsUtils = new AWSIntegrationUtils();
+    this.logger = new AWSSNSLogger(this.type);
+  },
+
+  /**
+   * Send a message to an AWS SNS queue and if it fails will
+   * attempts a number of retries (set in a system property)
+   *
+   * @param {string} queueName
+   * @param {string} messageBody
+   * @param {sys_id} credID - points to a credential record
+   *
+   * @returns {object} - contains properties status, responseAttributes, message and httpStatus
+   */
+  sendMessageWithRetry: function (queueName, messageBody, credID, taskID) {
+    var result = { status: null, responseAttributes: {}, message: null, httpStatus: null };
+    var maxRetries = gs.getProperty("x_58056_aws_sns_int.aws_sns.send_message.max_retries", this.MAX_RETRIES);
+    maxRetries = parseInt(maxRetries);
+
+    var tries = 0;
+
+    var done = false;
+
+    while (!done) {
+      result = this.sendMessage(queueName, messageBody, credID, taskID);
+      tries++;
+      if (result.status == this.awsUtils.SUCCESS) {
+        done = true;
+      } else {
+        if (result.httpStatus == this.SEND_MESSAGE_RETRY_STATUS_CODE) {
+          if (tries > maxRetries) {
+            // Too many attempts
+            done = true;
+          }
+        } else {
+          // Some unknown error
+          done = true;
+        }
+      }
+    }
+
+    this.logger.log("SendMessage attempts: " + tries);
+
+    return result;
+  },
+
+  /**
+   * Send a message to an AWS SNS queue - one attempt only
+   *
+   * @param {*} queueName
+   * @param {*} messageBody
+   * @param {*} credID
+   * @param {*} taskID
+   *
+   * @returns {object} - contains properties status, responseAttributes, message and httpStatus
+   */
+  sendMessage: function (queueName, messageBody, credID, taskID) {
+    var result = { status: null, responseAttributes: {}, message: null, httpStatus: null };
+    var queueGR = null;
+    if (gs.nil(queueName)) {
+      queueGR = this.getDefaultQueueAttributes();
+    } else {
+      queueGR = this.getQueueAttributes(queueName);
+    }
+
+    if (gs.nil(queueGR)) {
+      result.status = this.awsUtils.FAILED;
+      result.message = "Queue not found";
+      this.logger.logError(result.message);
+      return result;
+    }
+    var queueAttr = this._getQueueAttr(queueGR);
+
+    var body = ["MessageBody=" + encodeURIComponent(messageBody), "Action=" + this.SEND_MESSAGE_ACTION].join("&");
+
+    result = this.triggerSQSAction(queueAttr.url, this.SEND_MESSAGE_ACTION, body, credID, taskID);
+    result.responseAttributes = {};
+
+    if (result.status == this.awsUtils.SUCCESS) {
+      var responseObject = gs.xmlToJSON(result.responseBody);
+      this.logger.log("JSON Response=" + JSON.stringify(responseObject));
+      if ("SendMessageResponse" in responseObject) {
+        var messageResponse = responseObject.SendMessageResponse;
+        if ("ResponseMetadata" in messageResponse && "RequestId" in messageResponse.ResponseMetadata) {
+          result.responseAttributes.RequestId = messageResponse.ResponseMetadata.RequestId;
+        }
+        if ("SendMessageResult" in messageResponse && !gs.nil(messageResponse.SendMessageResult)) {
+          if ("MessageId" in messageResponse.SendMessageResult) {
+            result.responseAttributes.messageId = messageResponse.SendMessageResult.MessageId;
+          }
+          if ("MD5OfMessageBody" in messageResponse.SendMessageResult) {
+            result.responseAttributes.MD5OfMessageBody = messageResponse.SendMessageResult.MD5OfMessageBody;
+          }
+          if ("MD5OfMessageAttributes" in messageResponse.SendMessageResult) {
+            result.responseAttributes.MD5OfMessageAttributes = messageResponse.SendMessageResult.MD5OfMessageAttributes;
+          }
+        }
+      }
+    }
+    return result;
+  },
+
+  _getQueueAttr: function (queueGR) {
+    queueAttr = {};
+    queueAttr.url = queueGR.queue_url.toString();
+    queueAttr.deleteMessages = queueGR.delete_messages ? true : false;
+    queueAttr.maxNumberOfMessages = parseInt(queueGR.max_number_of_messages.toString());
+    queueAttr.visibilityTimeout = parseInt(queueGR.visibility_timeout.toString());
+    queueAttr.waitTime = parseInt(queueGR.wait_time.toString());
+    return queueAttr;
+  },
+
+  /**
+   * Perform a ReceiveMessage action for each active queue
+   */
+  receiveMessages: function (credID) {
+    var queueGR = new GlideRecord("x_58056_aws_sns_int_sqs_queue");
+    queueGR.addQuery("active", true);
+    queueGR.addQuery("auto_retrieve_messages", true);
+    queueGR.query();
+    while (queueGR.next()) {
+      this.receiveMessage(queueGR.name.toString(), credID);
+    }
+  },
+
+  /**
+   * Pulls in messages from an AWS SNS queue
+   *
+   * @param {*} queueURL
+   * @param {*} credID
+   * @param {*} taskID
+   *
+   * @returns {object} - contains properties status, responseAttributes, message and httpStatus
+   */
+  receiveMessage: function (queueName, credID, taskID) {
+    var result = { status: null, responseMessages: [], responseAttributes: {}, deleteResult: {}, message: null };
+
+    var queueGR = null;
+    if (gs.nil(queueName)) {
+      queueGR = this.getDefaultQueueAttributes();
+    } else {
+      queueGR = this.getQueueAttributes(queueName);
+    }
+
+    if (gs.nil(queueGR)) {
+      result.status = this.awsUtils.FAILED;
+      result.message = "Queue not found";
+      this.logger.logError(result.message);
+      return result;
+    }
+    var queueAttr = this._getQueueAttr(queueGR);
+
+    if (queueAttr.maxNumberOfMessages == 0) {
+      queueAttr.maxNumberOfMessages = this.MAX_NUMBER_OF_MESSAGES;
+    }
+
+    if (queueAttr.visibilityTimeout == 0) {
+      queueAttr.visibilityTimeout = this.VISIBILITY_TIMEOUT;
+    }
+
+    if (queueAttr.waitTime == 0) {
+      queueAttr.waitTime = this.WAIT_TIME_SECONDS;
+    }
+
+    var body = [
+      "Action=" + this.RECEIVE_MESSAGE_ACTION,
+      "AttributeName=All",
+      "MaxNumberOfMessages=" + queueAttr.maxNumberOfMessages,
+      "VisibilityTimeout=" + queueAttr.visibilityTimeout,
+      "WaitTimeSeconds=" + queueAttr.waitTime,
+    ].join("&");
+
+    result = this.triggerSQSAction(queueAttr.url, this.RECEIVE_MESSAGE_ACTION, body, credID, taskID);
+    result.responseMessages = [];
+    result.responseAttributes = {};
+
+    if (result.status == this.awsUtils.SUCCESS) {
+      var responseObject = gs.xmlToJSON(result.responseBody);
+      this.logger.log("JSON Response=" + JSON.stringify(responseObject));
+      var receiptHandles = [];
+      if ("ReceiveMessageResponse" in responseObject) {
+        var messageResponse = responseObject.ReceiveMessageResponse;
+        if ("ResponseMetadata" in messageResponse && "RequestId" in messageResponse.ResponseMetadata) {
+          result.responseAttributes.RequestId = messageResponse.ResponseMetadata.RequestId;
+        }
+        if (
+          "ReceiveMessageResult" in messageResponse &&
+          !gs.nil(messageResponse.ReceiveMessageResult) &&
+          "Message" in messageResponse.ReceiveMessageResult
+        ) {
+          var msgs = messageResponse.ReceiveMessageResult.Message;
+          var messages = [];
+          if (Array.isArray(msgs)) {
+            messages = msgs;
+          } else {
+            messages.push(msgs);
+          }
+          messages.forEach(function (message) {
+            var resultMessage = { SenderId: "", ReceiptHandle: "", Body: "", MessageId: "" };
+            if ("Attribute" in message) {
+              message.Attribute.some(function (attribute) {
+                if (attribute.Name == "SenderId") {
+                  resultMessage.SenderId = attribute.Value;
+                  return true;
+                }
+                return false;
+              }, this);
+            }
+            resultMessage.ReceiptHandle = message.ReceiptHandle;
+            receiptHandles.push(message.ReceiptHandle);
+            resultMessage.Body = message.Body;
+            resultMessage.MessageId = message.MessageId;
+            this._processMessage(queueGR, resultMessage);
+            result.responseMessages.push(resultMessage);
+          }, this);
+        }
+      }
+      if (queueAttr.deleteMessages && receiptHandles.length > 0) {
+        // Reset the authorization object for the delete call
+        result.deleteResult = this.deleteMessages(queueAttr.url, receiptHandles);
+      }
+    }
+    return result;
+  },
+
+  _processMessage: function (queueGR, message) {
+    var notes = [];
+
+    var errorsOccurred = [];
+    // Handle processors
+    var SQSProcessorGR = new GlideRecord("x_58056_aws_sns_int_m2m_sqs_queue_pr_sqs_queues");
+    SQSProcessorGR.addQuery("sqs_queue", queueGR.getUniqueValue());
+    SQSProcessorGR.addQuery("active", true);
+    SQSProcessorGR.orderBy("order");
+    SQSProcessorGR.query();
+    while (SQSProcessorGR.next()) {
+      var processorGR = SQSProcessorGR.processor.getRefRecord();
+      var evaluator = new GlideScopedEvaluator();
+      evaluator.putVariable("message", message);
+      evaluator.putVariable("sqs_message_result", { error_occurred: false, message: null });
+      evaluator.evaluateScript(processorGR, "processor_script");
+      var result = evaluator.getVariable("sqs_message_result");
+      this.logger.log("error_occurred=" + result.error_occurred + " message=" + result.message);
+      if ((result.error_occurred === "true" || result.error_occurred === true) && !gs.nil(result.message)) {
+        errorsOccurred.push(result.message);
+      }
+      if (!gs.nil(result.message)) {
+        notes.push("Processor " + processorGR.getDisplayValue() + " evaluated and returned this message:");
+        notes.push(result.message);
+      } else {
+        notes.push("Processor " + processorGR.getDisplayValue() + " evaluated with no message returned.");
+      }
+    }
+
+    if (notes.length == 0) {
+      notes.push("Nothing to process.");
+    }
+
+    this.logger.log(notes.join("\n\n"));
+  },
+
+  /**
+   *
+   * @param {*} queueURL
+   * @param {*} receiptHandles
+   * @param {*} credID
+   * @param {*} taskID
+   */
+  deleteMessages: function (queueURL, receiptHandles, credID, taskID) {
+    var result = { status: null, responseErrorMessages: [], RequestId: "", message: null };
+    if (gs.nil(queueURL)) {
+      this.logger.logError("Queue url missing");
+      return;
+    }
+
+    var body = ["Action=" + this.DELETE_MESSAGE_ACTION];
+
+    receiptHandles.forEach(function (receiptHandle, idx) {
+      var n = idx + 1;
+      body.push("DeleteMessageBatchRequestEntry." + n + ".Id=msg" + n);
+      body.push("DeleteMessageBatchRequestEntry." + n + ".ReceiptHandle=" + encodeURIComponent(receiptHandle));
+    }, this);
+
+    body = body.join("&");
+    this.logger.log("Body=" + body);
+
+    result = this.triggerSQSAction(queueURL, this.DELETE_MESSAGE_ACTION, body, credID, taskID);
+    result.responseErrorMessages = [];
+    result.RequestId = "";
+
+    if (result.status == this.awsUtils.SUCCESS) {
+      var responseObject = gs.xmlToJSON(result.responseBody);
+      this.logger.log("JSON Response=" + JSON.stringify(responseObject));
+      if ("DeleteMessageBatchResponse" in responseObject) {
+        var deleteResponse = responseObject.DeleteMessageBatchResponse;
+        if ("ResponseMetadata" in deleteResponse && "RequestId" in deleteResponse.ResponseMetadata) {
+          result.RequestId = deleteResponse.ResponseMetadata.RequestId;
+        }
+        if ("DeleteMessageBatchResult" in deleteResponse && "BatchResultErrorEntry" in deleteResponse.DeleteMessageBatchResult) {
+          result.responseErrorMessages = deleteResponse.DeleteMessageBatchResult.BatchResultErrorEntry;
+        }
+      }
+    }
+    return result;
+  },
+
+  /**
+   * Send a message to an AWS resource - one attempt only
+   *
+   * @param {*} targetURL
+   * @param {*} messageBody
+   * @param {*} credID
+   * @param {*} taskID
+   * @param {*} method
+   * @param {*} contentType
+   * @param {*} messageType
+   *
+   * @returns {object} - contains properties status, responseAttributes, message and httpStatus
+   */
+  triggerSQSAction: function (targetURL, action, messageBody, credID, taskID) {
+    var result = { status: null, responseBody: "", message: null, httpStatus: null };
+    if (gs.nil(targetURL)) {
+      result.message = "Target URL missing";
+      result.status = this.awsUtils.FAILED;
+      this.logger.logError(result.message);
+      return result;
+    }
+
+    if (gs.nil(action) || !(action in this.ACTION_PARAMETERS)) {
+      result.message = "Action or action parameters missing";
+      result.status = this.awsUtils.FAILED;
+      this.logger.logError(result.message);
+      return result;
+    }
+    var actionParameters = this.ACTION_PARAMETERS[action];
+
+    var awsCreds = this.awsUtils.getCredentials(credID);
+    if (!awsCreds.accessKeyID) {
+      result.message = "AWS credentials not found";
+      result.status = this.awsUtils.FAILED;
+      this.logger.logError(result.message);
+      return result;
+    }
+
+    var awsAPIAuthorization = new AWSAuthorization(
+      targetURL,
+      actionParameters.method,
+      null, // From targetURL
+      null, // From targetURL
+      awsCreds.accessKeyID,
+      awsCreds.SecretAccessKey,
+      actionParameters.contentType,
+      messageBody
+    );
+
+    this.logger.log("Target URL=" + awsAPIAuthorization.getTargetURL());
+
+    var rm = this.awsUtils.prepareRestMessage(
+      awsAPIAuthorization.getMethod(),
+      awsAPIAuthorization.getTargetURL(),
+      awsAPIAuthorization.getAuthorization(),
+      awsAPIAuthorization.getDate(),
+      awsAPIAuthorization.getHeadersObject(),
+      awsAPIAuthorization.getAllQueryParameters(),
+      awsAPIAuthorization.getBody()
+    );
+
+    try {
+      var response = rm.execute();
+      var responseBody = response.getBody();
+      var httpStatus = response.getStatusCode();
+      result.httpStatus = httpStatus;
+      var endPoint = rm.getEndpoint();
+
+      var headers = awsAPIAuthorization.getHeadersObject();
+      delete headers["authorization"]; // dont save the base64 user/password
+
+      this.logger.addRESTTransactionLog(actionParameters.messageType, actionParameters.direction, {
+        method: awsAPIAuthorization.getMethod(),
+        http_status: httpStatus,
+        endpoint: endPoint,
+        request: decodeURIComponent(awsAPIAuthorization.getBody()),
+        response: responseBody,
+        task: taskID,
+        headers: JSON.stringify(headers),
+        query: JSON.stringify(awsAPIAuthorization.getAllQueryParameters()),
+      });
+
+      var ok = false;
+      if (httpStatus == 200 || httpStatus == 201) {
+        ok = true;
+      }
+
+      if (!ok) {
+        result.message =
+          "Bad status code returned from sendMessage call. " +
+          " \n\nCode=" +
+          httpStatus +
+          "\n\nEndpoint=" +
+          endPoint +
+          "\n\nResponse=" +
+          responseBody;
+        this.logger.logError(result.message);
+        result.status = this.awsUtils.FAILED;
+      } else {
+        result.responseBody = responseBody;
+        result.status = this.awsUtils.SUCCESS;
+      }
+    } catch (e) {
+      result.message = e.message;
+      result.status = this.awsUtils.FAILED;
+      this.logger.logError(result.message);
+    }
+    return result;
+  },
+
+  _parseResponseXML: function (responseBody) {
+    var xmlDoc = new XMLDocument2();
+    xmlDoc.parseXML(responseBody);
+    return xmlDoc;
+    xmlDoc;
+  },
+
+  getQueueAttributes: function (queueName) {
+    var queueGR = new GlideRecord("x_58056_aws_sns_int_sqs_queue");
+    queueGR.addQuery("active", true);
+    queueGR.addQuery("name", queueName);
+    queueGR.query();
+    if (queueGR.next()) {
+      return queueGR;
+    }
+    return null;
+  },
+
+  getDefaultQueueAttributes: function () {
+    var queueGR = new GlideRecord("x_58056_aws_sns_int_sqs_queue");
+    queueGR.addQuery("active", true);
+    queueGR.addQuery("default", true);
+    queueGR.query();
+    if (queueGR.next()) {
+      return queueGR;
+    }
+    return null;
+  },
+
+  type: "AWSSQSUtils",
+};
+
+AWSSQSUtils.testSendMessage = function (queueName, msg) {
+  if (gs.nil(queueName)) {
+    queueName = "ServiceNow";
+    gs.info("Using queueName=" + queueName + ".");
+  }
+
+  if (!msg) {
+    var obj = {};
+    obj.TransactionType = "TestType";
+    obj.Subject = "ServiceNow Message";
+    obj.Message = { Response: { id: "123456", sub_id: "taskabcd", status: "received", message: "Done" } };
+    msg = JSON.stringify(obj);
+    gs.info("Using msg=" + msg + ".");
+  }
+
+  var responseElements = null;
+  var result = new AWSSQSUtils().sendMessageWithRetry(queueName, msg);
+  if (result.status == "success") {
+    responseElements = result.responseAttributes;
+    for (key in responseElements) {
+      gs.info(key + "=" + responseElements[key]);
+    }
+  } else {
+    gs.error("Send Message failed. msg=" + result.message);
+  }
+  return responseElements;
+};
+
+AWSSQSUtils.testReceiveMessage = function (queueName) {
+  if (gs.nil(queueName)) {
+    queueName = "ServiceNow";
+    gs.info("Using queueName=" + queueName + ".");
+  }
+
+  var result = new AWSSQSUtils().receiveMessage(queueName);
+  if (result.status == "success") {
+    gs.info("Messages=" + result.responseMessages.length);
+  } else {
+    gs.error("Receive Message failed. msg=" + result.message);
+  }
+};
+]]></script>
+        <sys_class_name>sys_script_include</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2020-06-05 00:05:28</sys_created_on>
+        <sys_id>6d1b7e8007d91010bb16f2508c1ed079</sys_id>
+        <sys_mod_count>35</sys_mod_count>
+        <sys_name>AWSSQSUtils</sys_name>
+        <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
+        <sys_policy>read</sys_policy>
+        <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
+        <sys_update_name>sys_script_include_6d1b7e8007d91010bb16f2508c1ed079</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2020-08-05 00:51:15</sys_updated_on>
+    </sys_script_include>
+</record_update>

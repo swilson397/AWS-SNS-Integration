@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update>
+    <sys_documentation element="active" label="Active" language="en" table="x_58056_aws_sns_int_m2m_sns_processors_sns_topics">
+        <sys_documentation action="INSERT_OR_UPDATE">
+            <element>active</element>
+            <help/>
+            <hint/>
+            <label>Active</label>
+            <language>en</language>
+            <name>x_58056_aws_sns_int_m2m_sns_processors_sns_topics</name>
+            <plural>Active</plural>
+            <sys_class_name>sys_documentation</sys_class_name>
+            <sys_created_by>admin</sys_created_by>
+            <sys_created_on>2020-08-04 23:23:11</sys_created_on>
+            <sys_id>a86a707707da9010bb16f2508c1ed082</sys_id>
+            <sys_mod_count>0</sys_mod_count>
+            <sys_name>Active</sys_name>
+            <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
+            <sys_policy/>
+            <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
+            <sys_update_name>sys_documentation_x_58056_aws_sns_int_m2m_sns_processors_sns_topics_active_en</sys_update_name>
+            <sys_updated_by>admin</sys_updated_by>
+            <sys_updated_on>2020-08-04 23:23:11</sys_updated_on>
+            <url/>
+            <url_target/>
+        </sys_documentation>
+    </sys_documentation>
+</record_update>

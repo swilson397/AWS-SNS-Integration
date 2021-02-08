@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update>
+    <sys_documentation element="auto_retrieve_messages" label="Auto retrieve messages" language="en" table="x_58056_aws_sns_int_sqs_queue">
+        <sys_documentation action="INSERT_OR_UPDATE">
+            <element>auto_retrieve_messages</element>
+            <help/>
+            <hint/>
+            <label>Auto retrieve messages</label>
+            <language>en</language>
+            <name>x_58056_aws_sns_int_sqs_queue</name>
+            <plural>Auto retrieve messages</plural>
+            <sys_class_name>sys_documentation</sys_class_name>
+            <sys_created_by>admin</sys_created_by>
+            <sys_created_on>2020-06-24 21:06:00</sys_created_on>
+            <sys_id>57c115ae07651010bb16f2508c1ed001</sys_id>
+            <sys_mod_count>0</sys_mod_count>
+            <sys_name>Auto retrieve messages</sys_name>
+            <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
+            <sys_policy/>
+            <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
+            <sys_update_name>sys_documentation_x_58056_aws_sns_int_sqs_queue_auto_retrieve_messages_en</sys_update_name>
+            <sys_updated_by>admin</sys_updated_by>
+            <sys_updated_on>2020-06-24 21:06:00</sys_updated_on>
+            <url/>
+            <url_target/>
+        </sys_documentation>
+    </sys_documentation>
+</record_update>

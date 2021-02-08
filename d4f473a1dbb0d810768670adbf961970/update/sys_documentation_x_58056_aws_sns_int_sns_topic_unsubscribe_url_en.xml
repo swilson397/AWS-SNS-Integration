@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update>
+    <sys_documentation element="unsubscribe_url" label="Unsubscribe URL" language="en" table="x_58056_aws_sns_int_sns_topic">
+        <sys_documentation action="INSERT_OR_UPDATE">
+            <element>unsubscribe_url</element>
+            <help/>
+            <hint/>
+            <label>Unsubscribe URL</label>
+            <language>en</language>
+            <name>x_58056_aws_sns_int_sns_topic</name>
+            <plural>Unsubscribe URLs</plural>
+            <sys_class_name>sys_documentation</sys_class_name>
+            <sys_created_by>admin</sys_created_by>
+            <sys_created_on>2020-07-15 00:24:16</sys_created_on>
+            <sys_id>7efe388107c2d010bb16f2508c1ed036</sys_id>
+            <sys_mod_count>0</sys_mod_count>
+            <sys_name>Unsubscribe URL</sys_name>
+            <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
+            <sys_policy/>
+            <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
+            <sys_update_name>sys_documentation_x_58056_aws_sns_int_sns_topic_unsubscribe_url_en</sys_update_name>
+            <sys_updated_by>admin</sys_updated_by>
+            <sys_updated_on>2020-07-15 00:24:16</sys_updated_on>
+            <url/>
+            <url_target/>
+        </sys_documentation>
+    </sys_documentation>
+</record_update>

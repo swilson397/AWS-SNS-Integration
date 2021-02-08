@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update>
+    <sys_documentation element="processor_script" label="Processor script" language="en" table="x_58056_aws_sns_int_sns_processor">
+        <sys_documentation action="INSERT_OR_UPDATE">
+            <element>processor_script</element>
+            <help/>
+            <hint/>
+            <label>Processor script</label>
+            <language>en</language>
+            <name>x_58056_aws_sns_int_sns_processor</name>
+            <plural>Processor scripts</plural>
+            <sys_class_name>sys_documentation</sys_class_name>
+            <sys_created_by>admin</sys_created_by>
+            <sys_created_on>2020-05-15 23:59:16</sys_created_on>
+            <sys_id>9bd9fb25dbf0d810768670adbf96193e</sys_id>
+            <sys_mod_count>0</sys_mod_count>
+            <sys_name>Processor script</sys_name>
+            <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
+            <sys_policy/>
+            <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
+            <sys_update_name>sys_documentation_x_58056_aws_sns_int_sns_processor_processor_script_en</sys_update_name>
+            <sys_updated_by>admin</sys_updated_by>
+            <sys_updated_on>2020-05-15 23:59:16</sys_updated_on>
+            <url/>
+            <url_target/>
+        </sys_documentation>
+    </sys_documentation>
+</record_update>

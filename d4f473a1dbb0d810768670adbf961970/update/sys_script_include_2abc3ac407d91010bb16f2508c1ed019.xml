@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_script_include">
+    <sys_script_include action="INSERT_OR_UPDATE">
+        <access>package_private</access>
+        <active>true</active>
+        <api_name>x_58056_aws_sns_int.AWSIntegrationUtils</api_name>
+        <caller_access/>
+        <client_callable>false</client_callable>
+        <description/>
+        <name>AWSIntegrationUtils</name>
+        <script><![CDATA[var AWSIntegrationUtils = Class.create();
+
+AWSIntegrationUtils.prototype = {
+  SUCCESS: "success",
+  FAILED: "failed",
+  /**
+   * Initialize variables
+   */
+  initialize: function () {
+    this.awsSNSAuth = null;
+    this.logger = new AWSSNSLogger(this.type);
+  },
+
+  /**
+   *
+   * @param {*} method
+   * @param {*} endPoint
+   * @param {*} headers
+   * @param {*} auth
+   * @param {*} date
+   * @param {*} parameters
+   * @param {*} message
+   * @returns {sn_ws.RESTMessageV2} - Glide REST object ready for execution
+   */
+  prepareRestMessage: function (method, endPoint, auth, date, headers, parameters, message) {
+    var rm = new sn_ws.RESTMessageV2();
+    rm.setHttpMethod(method);
+    rm.setEndpoint(endPoint);
+    rm.setRequestHeader("Authorization", auth);
+    rm.setRequestHeader("Date", date);
+
+    // Add the headers
+    for (var headerName in headers) {
+      rm.setRequestHeader(headerName, headers[headerName]);
+    }
+
+    // Add the parameters
+    for (var parameterName in parameters) {
+      rm.setQueryParameter(parameterName, parameters[parameterName]);
+    }
+
+    if (!gs.nil(message)) {
+      rm.setRequestBody(message);
+    }
+    return rm;
+  },
+
+  /**
+   * Retrieves a credential record and returns the AWS keys
+   *
+   * @param {sys_id} credID - key value referencing a credential record
+   *
+   * @returns {object} - object with 2 properties: accessKeyID and SecretAccessKey
+   */
+  getCredentials: function (credID) {
+    var awsCred = { accessKeyID: null, SecretAccessKey: null };
+
+    if (gs.nil(credID)) {
+      credID = gs.getProperty("x_58056_aws_sns_int.aws_sns.credentials_sys_id", null);
+    }
+
+    if (!gs.nil(credID)) {
+      var awsCredGR = new GlideRecord("x_58056_aws_sns_int_credentials");
+      if (awsCredGR.get(credID)) {
+        awsCred.accessKeyID = awsCredGR.access_key_id.toString();
+        awsCred.SecretAccessKey = awsCredGR.secret_access_key.getDecryptedValue();
+      }
+    }
+    return awsCred;
+  },
+  
+  parseURL: function (url) {
+    var urlComponents = { protocol: "", host: "", port: "", path: "", query: "", url: "" },
+      protocolPattern = /^([a-z0-9.+-]+:)/i,
+      portPattern = /:[0-9]*$/,
+      simplePathPattern = /^(\/\/?(?!\/)[^\?\s]*)(\?[^\s]*)?$/,
+      hostEndingChars = ["/", "?"],
+      delims = ["<", ">", '"', "`", " ", "\r", "\n", "\t"],
+      unwise = ["{", "}", "|", "\\", "^", "`"].concat(delims),
+      autoEscape = ["'"].concat(unwise),
+      // Characters that are never ever allowed in a hostname.
+      // Note that any invalid chars are also handled, but these
+      // are the ones that are *expected* to be seen, so we fast-path
+      // them.
+      nonHostChars = ["%", "/", "?", ";", "#"].concat(autoEscape);
+
+    var rest = url;
+    var slashes = false;
+
+    // Set protocol
+    var proto = protocolPattern.exec(rest);
+    if (proto) {
+      proto = proto[0];
+      var lowerProto = proto.toLowerCase();
+      urlComponents.protocol = lowerProto;
+      rest = rest.substr(proto.length);
+    }
+    if (proto) {
+      if (rest.substr(0, 2) === "//") {
+        rest = rest.substr(2);
+        slashes = true;
+      }
+    }
+
+    if (slashes) {
+      // find the first instance of any hostEndingChars
+      var hostEnd = -1;
+      for (var i = 0; i < hostEndingChars.length; i++) {
+        var hec = rest.indexOf(hostEndingChars[i]);
+        if (hec !== -1 && (hostEnd === -1 || hec < hostEnd)) {
+          hostEnd = hec;
+        }
+      }
+      // if we still have not hit it, then the entire thing is a host.
+      if (hostEnd === -1) {
+        hostEnd = rest.length;
+      }
+
+      // the host is the remaining to the left of the first non-host char
+      var hostEnd = -1;
+      for (var i = 0; i < nonHostChars.length; i++) {
+        var hec = rest.indexOf(nonHostChars[i]);
+        if (hec !== -1 && (hostEnd === -1 || hec < hostEnd)) hostEnd = hec;
+      }
+      // if we still have not hit it, then the entire thing is a host.
+      if (hostEnd === -1) hostEnd = rest.length;
+
+      urlComponents.host = rest.slice(0, hostEnd);
+      rest = rest.slice(hostEnd);
+
+      var host = urlComponents.host;
+      var port = portPattern.exec(host);
+      if (port) {
+        port = port[0];
+        if (port !== ":") {
+          urlComponents.port = port.substr(1);
+        }
+        host = host.substr(0, host.length - port.length);
+      }
+      if (host) {
+        urlComponents.host = host;
+      }
+    }
+
+    for (var i = 0, l = autoEscape.length; i < l; i++) {
+      var ae = autoEscape[i];
+      if (rest.indexOf(ae) === -1) {
+        continue;
+      }
+      var esc = encodeURIComponent(ae);
+      if (esc === ae) {
+        esc = escape(ae);
+      }
+      rest = rest.split(ae).join(esc);
+    }
+
+    var qm = rest.indexOf("?");
+    if (qm !== -1) {
+      urlComponents.query = rest.substr(qm + 1);
+      rest = rest.slice(0, qm);
+    }
+
+    if (rest) {
+      urlComponents.path = rest;
+    }
+
+    if (urlComponents.host && !urlComponents.path) {
+      urlComponents.path = "/";
+    }
+
+    if (slashes) {
+      urlComponents.url = urlComponents.protocol + "//" + urlComponents.host;
+      if (! gs.nil(urlComponents.port)) {
+        urlComponents.url += ":" + urlComponents.port;
+      } 
+      urlComponents.url += urlComponents.path;
+    }
+
+    return urlComponents;
+  },
+
+
+  type: "AWSIntegrationUtils",
+};
+]]></script>
+        <sys_class_name>sys_script_include</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2020-06-05 00:12:39</sys_created_on>
+        <sys_id>2abc3ac407d91010bb16f2508c1ed019</sys_id>
+        <sys_mod_count>17</sys_mod_count>
+        <sys_name>AWSIntegrationUtils</sys_name>
+        <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
+        <sys_policy>read</sys_policy>
+        <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
+        <sys_update_name>sys_script_include_2abc3ac407d91010bb16f2508c1ed019</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2020-06-24 23:26:46</sys_updated_on>
+    </sys_script_include>
+</record_update>
