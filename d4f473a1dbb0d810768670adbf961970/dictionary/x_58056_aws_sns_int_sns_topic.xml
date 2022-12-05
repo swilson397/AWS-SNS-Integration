@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element label="SNS Topic" max_length="40" name="x_58056_aws_sns_int_sns_topic" sizeclass="1" type="collection">
+        <element attributes="edge_encryption_enabled=true" default="true" label="Active" max_length="40" name="active" type="boolean"/>
+        <element attributes="edge_encryption_enabled=true" default="true" label="Default" max_length="40" name="default" type="boolean"/>
+        <element display="true" label="Name" max_length="100" name="name" type="string"/>
+        <element attributes="edge_encryption_enabled=true" label="Service endpoint" max_length="1024" name="service_endpoint" type="url"/>
+        <element attributes="edge_encryption_enabled=true" choice="1" label="State" max_length="40" name="state" type="choice">
+            <choice>
+                <element inactive_on_update="false" label="Outbound Only" sequence="0" value="outbound"/>
+                <element inactive_on_update="false" label="Pending Confirmation" sequence="2" value="pending"/>
+                <element inactive_on_update="false" label="Subscribed" sequence="3" value="subscribed"/>
+                <element inactive_on_update="false" label="Unsubscribed" sequence="4" value="unsubscribed"/>
+            </choice>
+        </element>
+        <element label="Subscription ARN" max_length="2056" name="subscription_arn" type="string"/>
+        <element label="Subscription URL" max_length="1024" name="subscription_url" type="url"/>
+        <element label="Topic ARN" max_length="2056" name="topic_arn" type="string"/>
+        <element label="Unsubscribe URL" max_length="1024" name="unsubscribe_url" type="url"/>
+    </element>
+</database>

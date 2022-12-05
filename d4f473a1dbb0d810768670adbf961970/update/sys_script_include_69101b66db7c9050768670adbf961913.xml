@@ -2,7 +2,7 @@
     <sys_script_include action="INSERT_OR_UPDATE">
         <access>package_private</access>
         <active>true</active>
-        <api_name>x_58056_aws_sns_int.AWSSNSUtils</api_name>
+        <api_name>x_58056_aws_sns_in.AWSSNSUtils</api_name>
         <caller_access/>
         <client_callable>false</client_callable>
         <description/>
@@ -314,16 +314,18 @@ AWSSNSUtils.prototype = {
     request.setEndpoint(subscrGR.subscription_url.toString());
     request.setHttpMethod(this.CONFIRM_METHOD);
     var response = request.execute();
+	  
+    var body = response.getBody().trim();
 
     this.logger.addRESTTransactionLog(this.CONFIRM_SUBSCRIPTION_TYPE, this.OUTBOUND_DIRECTION, {
       method: this.CONFIRM_METHOD,
       http_status: response.getStatusCode(),
       end_point: request.getEndpoint(),
       request: request.getRequestBody(),
-      response: response.getBody(),
+      response: body,
     });
 
-    var responseObject = gs.xmlToJSON(response.getBody());
+    var responseObject = gs.xmlToJSON(body);
     this.logger.log("JSON Response=" + JSON.stringify(responseObject));
     if ("SubscriptionArn" in responseObject) {
       subscrGR.setValue("subscription_arn", responseObject.SubscriptionArn);
@@ -547,13 +549,13 @@ AWSSNSUtils.testPublishMessage = function (topicName, subject, msg) {
         <sys_created_by>admin</sys_created_by>
         <sys_created_on>2020-05-18 23:32:00</sys_created_on>
         <sys_id>69101b66db7c9050768670adbf961913</sys_id>
-        <sys_mod_count>34</sys_mod_count>
+        <sys_mod_count>36</sys_mod_count>
         <sys_name>AWSSNSUtils</sys_name>
         <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
         <sys_policy>read</sys_policy>
         <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
         <sys_update_name>sys_script_include_69101b66db7c9050768670adbf961913</sys_update_name>
         <sys_updated_by>admin</sys_updated_by>
-        <sys_updated_on>2020-08-05 00:37:01</sys_updated_on>
+        <sys_updated_on>2021-08-13 18:30:13</sys_updated_on>
     </sys_script_include>
 </record_update>

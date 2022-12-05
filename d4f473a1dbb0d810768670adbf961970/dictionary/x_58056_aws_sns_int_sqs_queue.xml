@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element label="SQS Queue" max_length="40" name="x_58056_aws_sns_int_sqs_queue" sizeclass="1" type="collection">
+        <element attributes="edge_encryption_enabled=true" default="true" label="Active" max_length="40" name="active" type="boolean"/>
+        <element attributes="edge_encryption_enabled=true" default="true" label="Auto retrieve messages" max_length="40" name="auto_retrieve_messages" type="boolean"/>
+        <element attributes="edge_encryption_enabled=true" label="Default" max_length="40" name="default" type="boolean"/>
+        <element attributes="edge_encryption_enabled=true" default="true" label="Delete messages" max_length="40" name="delete_messages" type="boolean"/>
+        <element attributes="edge_encryption_enabled=true" default="5" label="Max number of messages" max_length="40" name="max_number_of_messages" type="integer"/>
+        <element display="true" label="Name" mandatory="true" max_length="100" name="name" type="string"/>
+        <element label="Queue URL" mandatory="true" max_length="1024" name="queue_url" type="url"/>
+        <element attributes="edge_encryption_enabled=true" default="15" label="Visibility timeout" max_length="40" name="visibility_timeout" type="integer"/>
+        <element attributes="edge_encryption_enabled=true" default="10" label="Wait time (seconds)" max_length="40" name="wait_time" type="integer"/>
+    </element>
+</database>

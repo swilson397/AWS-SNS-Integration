@@ -15,6 +15,7 @@
         <form_link>false</form_link>
         <form_menu_button_v2>false</form_menu_button_v2>
         <form_style/>
+        <format_for_configurable_workspace>false</format_for_configurable_workspace>
         <hint/>
         <isolate_script>false</isolate_script>
         <list_action>false</list_action>
@@ -43,7 +44,7 @@
         <sys_domain>global</sys_domain>
         <sys_domain_path>/</sys_domain_path>
         <sys_id>2d9f8726db7c9050768670adbf96199d</sys_id>
-        <sys_mod_count>2</sys_mod_count>
+        <sys_mod_count>3</sys_mod_count>
         <sys_name>Re-confirm Subscription</sys_name>
         <sys_overrides/>
         <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
@@ -51,8 +52,8 @@
         <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
         <sys_update_name>sys_ui_action_2d9f8726db7c9050768670adbf96199d</sys_update_name>
         <sys_updated_by>admin</sys_updated_by>
-        <sys_updated_on>2020-05-18 23:32:43</sys_updated_on>
-        <table>x_58056_aws_sns_int_aws_subscription</table>
+        <sys_updated_on>2021-08-13 17:45:09</sys_updated_on>
+        <table>x_58056_aws_sns_int_sns_topic</table>
         <ui11_compatible>true</ui11_compatible>
         <ui16_compatible>false</ui16_compatible>
     </sys_ui_action>

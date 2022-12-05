@@ -25,6 +25,7 @@
             <language>en</language>
             <name>x_58056_aws_sns_int_rest_transaction_log</name>
             <sequence>0</sequence>
+            <synonyms/>
             <sys_created_by>admin</sys_created_by>
             <sys_created_on>2020-05-16 00:40:41</sys_created_on>
             <sys_domain>global</sys_domain>
@@ -44,6 +45,7 @@
             <language>en</language>
             <name>x_58056_aws_sns_int_rest_transaction_log</name>
             <sequence>1</sequence>
+            <synonyms/>
             <sys_created_by>admin</sys_created_by>
             <sys_created_on>2020-05-16 00:40:41</sys_created_on>
             <sys_domain>global</sys_domain>

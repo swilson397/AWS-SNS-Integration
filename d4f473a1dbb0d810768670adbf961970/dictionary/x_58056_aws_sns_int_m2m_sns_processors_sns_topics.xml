@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element label="Aws Sns Int M2m Sns Processors Sns Topics" max_length="40" name="x_58056_aws_sns_int_m2m_sns_processors_sns_topics" sizeclass="0" type="collection">
+        <element attributes="edge_encryption_enabled=true" default="true" label="Active" max_length="40" name="active" type="boolean"/>
+        <element attributes="edge_encryption_enabled=true" default="100" label="Order" max_length="40" name="order" type="integer"/>
+        <element attributes="edge_encryption_enabled=true,encode_utf8=false" label="SNS Processor" max_length="32" name="sns_processor" reference="x_58056_aws_sns_int_sns_processor" type="reference"/>
+        <element attributes="edge_encryption_enabled=true,encode_utf8=false" label="SNS Topic" max_length="32" name="sns_topic" reference="x_58056_aws_sns_int_sns_topic" type="reference"/>
+        <index name="index">
+            <element name="sns_processor"/>
+        </index>
+        <index name="index2">
+            <element name="sns_topic"/>
+        </index>
+    </element>
+</database>

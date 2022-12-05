@@ -47,21 +47,21 @@
         <reference_qual/>
         <reference_qual_condition/>
         <reference_type/>
-        <sizeclass>5226</sizeclass>
+        <sizeclass>20875</sizeclass>
         <spell_check>false</spell_check>
         <staged>false</staged>
         <sys_class_name>sys_dictionary</sys_class_name>
         <sys_created_by>admin</sys_created_by>
         <sys_created_on>2020-05-16 00:29:21</sys_created_on>
         <sys_id>c0c008f1db34d810768670adbf96198b</sys_id>
-        <sys_mod_count>110</sys_mod_count>
+        <sys_mod_count>560</sys_mod_count>
         <sys_name>x_58056_aws_sns_int_rest_transaction_log</sys_name>
         <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
         <sys_policy/>
         <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
         <sys_update_name>sys_dictionary_x_58056_aws_sns_int_rest_transaction_log_null</sys_update_name>
         <sys_updated_by>system</sys_updated_by>
-        <sys_updated_on>2021-02-08 16:19:38</sys_updated_on>
+        <sys_updated_on>2022-12-05 11:36:55</sys_updated_on>
         <table_reference>false</table_reference>
         <text_index>false</text_index>
         <unique>false</unique>

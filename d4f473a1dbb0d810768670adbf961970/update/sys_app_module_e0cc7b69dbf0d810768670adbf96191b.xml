@@ -19,8 +19,6 @@
         <query>system_properties_ui.do?sysparm_title=AWS SNS Integration Properties&amp;sysparm_category=AWS%20SNS%20Integration</query>
         <report/>
         <roles/>
-        <survey/>
-        <survey_overwrite>true</survey_overwrite>
         <sys_class_name>sys_app_module</sys_class_name>
         <sys_created_by>admin</sys_created_by>
         <sys_created_on>2020-05-16 00:12:51</sys_created_on>

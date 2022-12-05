@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element label="Aws Sns Int M2m Sqs Queue Pr Sqs Queues" max_length="40" name="x_58056_aws_sns_int_m2m_sqs_queue_pr_sqs_queues" sizeclass="0" type="collection">
+        <element attributes="edge_encryption_enabled=true" default="true" label="Active" max_length="40" name="active" type="boolean"/>
+        <element attributes="edge_encryption_enabled=true" default="100" label="Order" max_length="40" name="order" type="integer"/>
+        <element attributes="edge_encryption_enabled=true,encode_utf8=false" label="SQS Queue Processor" max_length="32" name="processor" reference="x_58056_aws_sns_int_sqs_queue_processor" type="reference"/>
+        <element attributes="edge_encryption_enabled=true,encode_utf8=false" label="SQS Queue" max_length="32" name="sqs_queue" reference="x_58056_aws_sns_int_sqs_queue" type="reference"/>
+        <index name="index">
+            <element name="processor"/>
+        </index>
+        <index name="index2">
+            <element name="sqs_queue"/>
+        </index>
+    </element>
+</database>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element label="REST Transaction Log" max_length="40" name="x_58056_aws_sns_int_rest_transaction_log" sizeclass="20875" type="collection">
+        <element label="Body" max_length="4000" name="body" type="string"/>
+        <element attributes="edge_encryption_enabled=true" choice="1" default="Outbound" label="Direction" max_length="40" name="direction" type="choice">
+            <choice>
+                <element inactive_on_update="false" label="Outbound" sequence="0" value="Outbound"/>
+                <element inactive_on_update="false" label="Inbound" sequence="1" value="Inbound"/>
+            </choice>
+        </element>
+        <element label="Endpoint" max_length="1024" name="endpoint" type="url"/>
+        <element attributes="edge_encryption_enabled=true" label="Headers" max_length="4000" name="headers" type="string"/>
+        <element label="HTTP status" max_length="40" name="http_status" type="string"/>
+        <element default="GET" label="Method" max_length="40" name="method" type="string"/>
+        <element label="Notes" max_length="4000" name="notes" type="string"/>
+        <element attributes="edge_encryption_enabled=true" label="Query" max_length="1000" name="query" type="string"/>
+        <element attributes="edge_encryption_enabled=true" dependent="related_table" dependent_on_field="related_table" label="Related record" max_length="32" name="related_record" type="document_id" use_dependent_field="true"/>
+        <element attributes="base_start=true,edge_encryption_enabled=true" label="Related table" max_length="80" name="related_table" type="table_name"/>
+        <element label="Request" max_length="4096" name="request" type="string"/>
+        <element label="Response" max_length="4096" name="response" type="string"/>
+        <element attributes="edge_encryption_enabled=true" choice="1" default="Published" display="true" label="Transaction type" max_length="40" name="transaction_type" type="choice">
+            <choice>
+                <element inactive_on_update="false" label="Published" sequence="1" value="Published"/>
+                <element inactive_on_update="false" label="Received" sequence="2" value="Received"/>
+            </choice>
+        </element>
+        <index name="index">
+            <element name="related_record"/>
+        </index>
+    </element>
+</database>

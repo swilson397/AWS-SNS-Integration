@@ -2,7 +2,7 @@
     <sys_script_include action="INSERT_OR_UPDATE">
         <access>package_private</access>
         <active>true</active>
-        <api_name>x_58056_aws_sns_int.AWSAuthorization</api_name>
+        <api_name>x_58056_aws_sns_in.AWSAuthorization</api_name>
         <caller_access/>
         <client_callable>false</client_callable>
         <description/>
@@ -106,11 +106,11 @@ AWSAuthorization.prototype = {
   _getSignature: function (secretAccessKeyID, date_sub, region, service, stringToSign) {
     try {
       var kSecret = secretAccessKeyID;
-      var kDate = x_58056_aws_sns_int.CryptoJS.HmacSHA256(date_sub, "AWS4" + kSecret);
-      var kRegion = x_58056_aws_sns_int.CryptoJS.HmacSHA256(region, kDate);
-      var kService = x_58056_aws_sns_int.CryptoJS.HmacSHA256(service, kRegion);
-      var kSigning = x_58056_aws_sns_int.CryptoJS.HmacSHA256("aws4_request", kService);
-      var kSignature = x_58056_aws_sns_int.CryptoJS.HmacSHA256(stringToSign, kSigning);
+      var kDate = x_58056_aws_sns_in.CryptoJS.HmacSHA256(date_sub, "AWS4" + kSecret);
+      var kRegion = x_58056_aws_sns_in.CryptoJS.HmacSHA256(region, kDate);
+      var kService = x_58056_aws_sns_in.CryptoJS.HmacSHA256(service, kRegion);
+      var kSigning = x_58056_aws_sns_in.CryptoJS.HmacSHA256("aws4_request", kService);
+      var kSignature = x_58056_aws_sns_in.CryptoJS.HmacSHA256(stringToSign, kSigning);
 
       this.logger.debug("kSignature: " + kSignature);
 
@@ -503,13 +503,13 @@ AWSAuthorization.test = function () {
         <sys_created_by>admin</sys_created_by>
         <sys_created_on>2020-05-19 00:13:56</sys_created_on>
         <sys_id>18f91be6dbbc9050768670adbf9619c2</sys_id>
-        <sys_mod_count>15</sys_mod_count>
+        <sys_mod_count>16</sys_mod_count>
         <sys_name>AWSAuthorization</sys_name>
         <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
         <sys_policy>read</sys_policy>
         <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
         <sys_update_name>sys_script_include_18f91be6dbbc9050768670adbf9619c2</sys_update_name>
         <sys_updated_by>admin</sys_updated_by>
-        <sys_updated_on>2020-06-24 23:29:03</sys_updated_on>
+        <sys_updated_on>2021-08-13 18:50:56</sys_updated_on>
     </sys_script_include>
 </record_update>
