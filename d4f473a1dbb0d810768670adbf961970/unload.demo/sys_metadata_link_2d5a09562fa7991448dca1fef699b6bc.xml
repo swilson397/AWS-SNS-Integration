@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_metadata_link">
+    <sys_metadata_link action="INSERT_OR_UPDATE">
+        <directory>unload.demo</directory>
+        <documentkey>6d0da94007823010e3b2f8ed7c1ed0f1</documentkey>
+        <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update table="x_58056_aws_sns_int_sns_topic">
+    <x_58056_aws_sns_int_sns_topic action="INSERT_OR_UPDATE">
+        <active>true</active>
+        <default>true</default>
+        <name>MyTestTopic</name>
+        <service_endpoint>https://sns.us-east-2.amazonaws.com/</service_endpoint>
+        <state>subscribed</state>
+        <subscription_arn/>
+        <subscription_url>https://sns.us-east-2.amazonaws.com/?Action=ConfirmSubscription&amp;TopicArn=arn:aws:sns:us-east-2:894215831532:MyTestTopic&amp;Token=2336412f37fb687f5d51e6e2425e90ccf904c7abfc1d569806e74d8b0ed26c32862be8f58bd10ea79088099a9a085dc822b3322dd557fa3c3b3600a0a88998b7581a9de6905cf48937ce0f256b3185781f4f9e068c1db1cd82d7ef7c1d0a89e6c4fca1696fd16158ea7be71c1f58e250</subscription_url>
+        <sys_created_by>guest</sys_created_by>
+        <sys_created_on>2021-08-13 17:33:50</sys_created_on>
+        <sys_id>6d0da94007823010e3b2f8ed7c1ed0f1</sys_id>
+        <sys_mod_count>6</sys_mod_count>
+        <sys_updated_by>guest</sys_updated_by>
+        <sys_updated_on>2021-08-13 18:51:20</sys_updated_on>
+        <topic_arn>arn:aws:sns:us-east-2:894215831532:MyTestTopic</topic_arn>
+        <unsubscribe_url>https://sns.us-east-2.amazonaws.com/?Action=Unsubscribe&amp;SubscriptionArn=arn:aws:sns:us-east-2:894215831532:MyTestTopic:81bf7ceb-db5c-40f3-895c-c7fc9c124ceb</unsubscribe_url>
+    </x_58056_aws_sns_int_sns_topic>
+</record_update>
+]]></payload>
+        <sys_class_name>sys_metadata_link</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2022-12-05 20:45:05</sys_created_on>
+        <sys_id>2d5a09562fa7991448dca1fef699b6bc</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>MyTestTopic</sys_name>
+        <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
+        <sys_update_name>sys_metadata_link_2d5a09562fa7991448dca1fef699b6bc</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2022-12-05 20:45:05</sys_updated_on>
+        <tablename>x_58056_aws_sns_int_sns_topic</tablename>
+    </sys_metadata_link>
+</record_update>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_metadata_link">
+    <sys_metadata_link action="INSERT_OR_UPDATE">
+        <directory>unload.demo</directory>
+        <documentkey>d16171c407823010e3b2f8ed7c1ed006</documentkey>
+        <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update table="x_58056_aws_sns_int_sqs_queue">
+    <x_58056_aws_sns_int_sqs_queue action="INSERT_OR_UPDATE">
+        <active>true</active>
+        <auto_retrieve_messages>true</auto_retrieve_messages>
+        <default>false</default>
+        <delete_messages>true</delete_messages>
+        <max_number_of_messages>5</max_number_of_messages>
+        <name>MyTestQueue</name>
+        <queue_url>https://sqs.us-east-2.amazonaws.com/894215831532/SWTestQueue</queue_url>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2021-08-13 17:53:44</sys_created_on>
+        <sys_id>d16171c407823010e3b2f8ed7c1ed006</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2021-08-13 17:53:44</sys_updated_on>
+        <visibility_timeout>15</visibility_timeout>
+        <wait_time>10</wait_time>
+    </x_58056_aws_sns_int_sqs_queue>
+</record_update>
+]]></payload>
+        <sys_class_name>sys_metadata_link</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2022-12-05 20:45:43</sys_created_on>
+        <sys_id>3e7a4d562fa7991448dca1fef699b698</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>MyTestQueue</sys_name>
+        <sys_package display_value="AWS SNS Integration" source="x_58056_aws_sns_int">d4f473a1dbb0d810768670adbf961970</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="AWS SNS Integration">d4f473a1dbb0d810768670adbf961970</sys_scope>
+        <sys_update_name>sys_metadata_link_3e7a4d562fa7991448dca1fef699b698</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2022-12-05 20:45:43</sys_updated_on>
+        <tablename>x_58056_aws_sns_int_sqs_queue</tablename>
+    </sys_metadata_link>
+</record_update>
